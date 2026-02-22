@@ -1,4 +1,4 @@
-# Timeout!: NBA Timeout Optimization Intelligence
+# Timeout! - NBA Timeout Optimization Intelligence
 
 **Timeout!** is an AI-powered analytics platform built to solve one of the most debated questions in basketball: *Does calling a timeout actually help?*
 
@@ -8,22 +8,20 @@ Most coaches call timeouts based on "feel" when an opponent starts a run. We dec
 
 ## How it Works: The Dual-Model Approach
 
-Basketball is a mix of statistics and psychology. To capture both, we use a hybrid ensemble of two distinct models:
+Decisions in sports are based on both psychology and statistics. We use a hybrid model system to quantify the psychological and statistical aspects, deducing an overall optimal time to use a time out.
 
 ### 1. The Morale Model
-This model calculates an average momentum shift for every play. It isn't just looking at the score; it tracks:
-- **Scoring Run Intensity**: How fast are points being scored?
+This model calculates an average momentum shift for every play. It isn't looking at the score, but rather certain player patterns. For example:
 - **3-Point Streaks**: The psychological "dagger" effect of back-to-back threes.
-- **Margin Swings**: Rapid changes in the lead.
-- **Verdict**: If MSI drops below a certain threshold, the model signals that GSW is losing the "vibes" battle and needs a timeout.
+- **Fouls followed by a miss**: Teams may feel discouraged after two bad possessions
+- **Verdict**: Patterns are quantified based on how often they appear in winning and losing games averaged out and normalized. The result is an association between player patterns and momentum shift.
 
 ### 2. The Statistics Model (XGBoost)
-This is a cold, hard macnhine learning classifier. We trained an **XGBoost** model on historical timeout data, labeling a timeout as "beneficial" if the team's performance (score differential or opponent run suppression) improved in the following 15 plays.
-- **Features**: Period, clock time, score diff, opponent run size, own run size, recent FG%, and turnovers.
-- **Verdict**: Predicts the probability (0-100%) that a timeout in this exact situation will lead to a positive outcome.
+ We trained an **XGBoost** model on timeout data for all NBA teams over 6 seasons, labeling a timeout as "beneficial" if the opponent's scoring momentum stopped or decreased, or the current team's performance improved after the timeout. This predicts the probability that a timeout in this exact situation will lead to a positive outcome.
+ - **Verdict**: The model understands based on the point difference, streak, etc. when the best time to take a time out is purely on statistics.
 
 ### The Ensemble
-The final "Verdict" is a weighted average: **70% Stats + 30% Morale**. We trust the data most, but we let the "momentum feel" break the tie in close calls.
+Both models' conclusion is factored into a weighing algorithm that weighs one model's decision over the other based on different scenarios. As a result, a final conclusion is reached and a time out may be suggested.
 
 ---
 
@@ -41,10 +39,20 @@ python3 analyze_game1_finals.py
 ```
 
 ### Frontend: Interactive Dashboard
-We built a premium, glassmorphic dashboard to visualize the findings. You can use the **Live Simulator** to input any game state and see if the AI recommends a timeout.
+The premium dashboard is built with **React (Next.js/Vite)** and **Recharts**. It provides real-time visualization of the AI's morale analysis and ensemble recommendations.
 
-1. Navigate to the `nba_statistics_model` folder.
-2. Open `index.html` in any modern browser.
+```bash
+# 1. Navigate to the dashboard directory
+cd nba-analytics-dashboard
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start the local development server
+pnpm run dev
+```
+
+The dashboard will be available at `http://localhost:8080`.
 
 ---
 
@@ -61,4 +69,4 @@ We built a premium, glassmorphic dashboard to visualize the findings. You can us
 - **Frontend**: Vanilla HTML5, CSS3 (Glassmorphism), JavaScript (D3-inspired visualization)
 - **Data Processing**: Pandas / NumPy
 
-Built for the **Sports Analytics Hackathon 2026**. Stop guessing. Call the timeout when it matters.
+Built for the **Hacklytics Hackathon 2026**.
