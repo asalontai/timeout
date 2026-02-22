@@ -1,0 +1,8 @@
+pandas
+numpy
+scikit-learn
+xgboost
+joblib
+nba_api
+matplotlib
+tqdm

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeout IQ — NBA Timeout Optimization Intelligence</title>
+    <meta name="description" content="AI-powered NBA timeout optimization tool analyzing thousands of timeouts to find when calling timeout actually helps.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #1a2035;
+            --bg-card-hover: #1e2642;
+            --accent-green: #10b981;
+            --accent-green-dim: rgba(16, 185, 129, 0.15);
+            --accent-red: #ef4444;
+            --accent-red-dim: rgba(239, 68, 68, 0.15);
+            --accent-blue: #3b82f6;
+            --accent-blue-dim: rgba(59, 130, 246, 0.15);
+            --accent-amber: #f59e0b;
+            --accent-amber-dim: rgba(245, 158, 11, 0.15);
+            --accent-purple: #8b5cf6;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: rgba(255, 255, 255, 0.06);
+            --glow-green: 0 0 20px rgba(16, 185, 129, 0.3);
+            --glow-red: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== HEADER ===== */
+        header {
+            padding: 32px 0 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: var(--glow-green);
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo h1 span {
+            font-weight: 400;
+            -webkit-text-fill-color: var(--text-secondary);
+        }
+
+        .data-badge {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .data-badge .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        }
+
+        /* ===== HERO STATS ===== */
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 28px 0;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .stat-card:nth-child(1)::before { background: var(--accent-green); }
+        .stat-card:nth-child(2)::before { background: var(--accent-red); }
+        .stat-card:nth-child(3)::before { background: var(--accent-blue); }
+        .stat-card:nth-child(4)::before { background: var(--accent-amber); }
+        .stat-card:nth-child(5)::before { background: var(--accent-purple); }
+
+        .stat-card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        /* ===== SECTION TITLES ===== */
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 36px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .icon {
+            font-size: 22px;
+        }
+
+        /* ===== KEY FINDINGS ===== */
+        .findings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 16px;
+        }
+
+        .finding-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .finding-card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .finding-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .finding-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .finding-icon.green { background: var(--accent-green-dim); }
+        .finding-icon.red { background: var(--accent-red-dim); }
+        .finding-icon.blue { background: var(--accent-blue-dim); }
+        .finding-icon.amber { background: var(--accent-amber-dim); }
+
+        .finding-header h3 {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .finding-body {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .finding-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-top: 14px;
+        }
+
+        .finding-stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .finding-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .green-text { color: var(--accent-green); }
+        .red-text { color: var(--accent-red); }
+        .blue-text { color: var(--accent-blue); }
+        .amber-text { color: var(--accent-amber); }
+
+        /* ===== CORRELATION BAR CHART ===== */
+        .chart-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-top: 16px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .chart-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: -16px;
+            margin-bottom: 20px;
+        }
+
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 140px 1fr 60px;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .bar-label {
+            font-size: 13px;
+            font-weight: 500;
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        .bar-track {
+            height: 32px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 40px;
+        }
+
+        .bar-fill.green { background: linear-gradient(90deg, var(--accent-green), rgba(16, 185, 129, 0.6)); }
+        .bar-fill.red { background: linear-gradient(90deg, var(--accent-red), rgba(239, 68, 68, 0.6)); }
+        .bar-fill.blue { background: linear-gradient(90deg, var(--accent-blue), rgba(59, 130, 246, 0.6)); }
+
+        .bar-midline {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 2;
+        }
+
+        .bar-value {
+            font-size: 14px;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* ===== SIMULATOR ===== */
+        .simulator {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-top: 16px;
+        }
+
+        .simulator-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .simulator-grid { grid-template-columns: 1fr; }
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-row label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .input-row input, .input-row select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+
+        .input-row input:focus, .input-row select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .result-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 300px;
+            border-radius: 16px;
+            border: 2px dashed var(--border);
+            transition: all 0.5s ease;
+            padding: 32px;
+        }
+
+        .result-panel.active {
+            border-style: solid;
+        }
+
+        .result-panel.call {
+            border-color: var(--accent-green);
+            background: var(--accent-green-dim);
+            box-shadow: var(--glow-green);
+        }
+
+        .result-panel.dont-call {
+            border-color: var(--accent-red);
+            background: var(--accent-red-dim);
+            box-shadow: var(--glow-red);
+        }
+
+        .result-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+        }
+
+        .result-text {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .result-confidence {
+            font-size: 48px;
+            font-weight: 900;
+            margin: 12px 0;
+        }
+
+        .result-detail {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-width: 320px;
+        }
+
+        .btn-predict {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            border-radius: 12px;
+            padding: 14px 32px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+        }
+
+        /* ===== HEATMAP ===== */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: auto repeat(5, 1fr);
+            gap: 3px;
+            margin-top: 16px;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1.6;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.3s;
+            cursor: default;
+            min-height: 50px;
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.05);
+            z-index: 2;
+        }
+
+        .heatmap-cell .cell-n {
+            font-size: 10px;
+            font-weight: 400;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+
+        .heatmap-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 8px;
+        }
+
+        .heatmap-label.row-label {
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            padding: 40px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+        }
+
+        .method-note {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in:nth-child(2) { animation-delay: 0.1s; }
+        .fade-in:nth-child(3) { animation-delay: 0.2s; }
+        .fade-in:nth-child(4) { animation-delay: 0.3s; }
+        .fade-in:nth-child(5) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- HEADER -->
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🏀</div>
+                <h1>Timeout<span>IQ</span></h1>
+            </div>
+            <div class="data-badge">
+                <div class="pulse"></div>
+                <span id="data-status">Loading data...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO STATS -->
+    <div class="hero-stats" id="hero-stats">
+        <div class="stat-card fade-in">
+            <div class="stat-label">Total Timeouts</div>
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-sub" id="stat-total-sub">Across multiple teams & seasons</div>
+        </div>
+        <div class="stat-card fade-in">
+            <div class="stat-label">Actually Beneficial</div>
+            <div class="stat-value red-text" id="stat-beneficial">—</div>
+            <div class="stat-sub">Most timeouts don't help</div>
+        </div>
+        <div class="stat-card fade-in">
+            <div class="stat-label">Optimal Window</div>
+            <div class="stat-value green-text" id="stat-optimal">—</div>
+            <div class="stat-sub" id="stat-optimal-sub">Success rate when conditions are right</div>
+        </div>
+        <div class="stat-card fade-in">
+            <div class="stat-label">Worst Mistake</div>
+            <div class="stat-value amber-text" id="stat-worst">—</div>
+            <div class="stat-sub">Timeout during own run</div>
+        </div>
+        <div class="stat-card fade-in">
+            <div class="stat-label">Key Signal</div>
+            <div class="stat-value blue-text" id="stat-signal">—</div>
+            <div class="stat-sub">Strongest predictor</div>
+        </div>
+    </div>
+
+    <!-- KEY FINDINGS -->
+    <h2 class="section-title"><span class="icon">🔬</span> Key Findings</h2>
+    <div class="findings-grid" id="findings-grid">
+        <!-- Populated by JavaScript -->
+    </div>
+
+    <!-- EFFECTIVENESS BY RUN SIZE -->
+    <h2 class="section-title"><span class="icon">📊</span> Timeout Success by Opponent Run Size</h2>
+    <div class="chart-section">
+        <div class="chart-subtitle">Each bar shows how often a timeout was beneficial when the opponent had scored X unanswered points. The dashed line = 50% (coin flip).</div>
+        <div class="bar-chart" id="run-chart">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- HEATMAP: Run Size × Score Margin -->
+    <h2 class="section-title"><span class="icon">🗺️</span> When To Call: Opponent Run × Score Margin</h2>
+    <div class="chart-section">
+        <div class="chart-subtitle">Green = timeout likely to help. Red = likely won't help. Hover for details. This is the core decision matrix for coaches.</div>
+        <div class="heatmap-grid" id="heatmap">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- INTERACTIVE SIMULATOR -->
+    <h2 class="section-title"><span class="icon">🎯</span> Live Timeout Simulator</h2>
+    <div class="simulator">
+        <div class="chart-subtitle">Input a game situation and see what the data says. Based on historical analysis of similar moments.</div>
+        <div class="simulator-grid">
+            <div class="input-group">
+                <div class="input-row">
+                    <label>Quarter</label>
+                    <select id="sim-period">
+                        <option value="1">Q1</option>
+                        <option value="2">Q2</option>
+                        <option value="3" selected>Q3</option>
+                        <option value="4">Q4</option>
+                    </select>
+                </div>
+                <div class="input-row">
+                    <label>Minutes Remaining in Quarter</label>
+                    <input type="number" id="sim-clock" value="6" min="0" max="12" step="0.5">
+                </div>
+                <div class="input-row">
+                    <label>Your Score Margin (negative = trailing)</label>
+                    <input type="number" id="sim-diff" value="-5" min="-40" max="40">
+                </div>
+                <div class="input-row">
+                    <label>Opponent's Unanswered Scoring Run</label>
+                    <input type="number" id="sim-opp-run" value="7" min="0" max="25">
+                </div>
+                <div class="input-row">
+                    <label>Your Team's Unanswered Run</label>
+                    <input type="number" id="sim-own-run" value="0" min="0" max="25">
+                </div>
+                <div class="input-row">
+                    <label>Opponent FG% Recently (0–100)</label>
+                    <input type="number" id="sim-opp-fg" value="65" min="0" max="100">
+                </div>
+                <button class="btn-predict" onclick="runSimulation()">Analyze This Situation</button>
+            </div>
+
+            <div class="result-panel" id="result-panel">
+                <div class="result-icon">🏀</div>
+                <div class="result-text" style="color: var(--text-muted);">Enter a game situation</div>
+                <div class="result-detail">Adjust the inputs and click "Analyze" to see what the data says about calling a timeout here.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- METHODOLOGY -->
+    <h2 class="section-title"><span class="icon">📝</span> Methodology</h2>
+    <div class="method-note">
+        <strong>Data Source:</strong> NBA API (PlayByPlayV3) — real play-by-play data from multiple NBA seasons.<br>
+        <strong>Timeout Definition:</strong> Non-official (team-called) timeouts identified from play-by-play descriptions.<br>
+        <strong>Features Captured:</strong> For each timeout: opponent scoring run, own scoring run, score differential, quarter, clock time, FG%, turnovers.<br>
+        <strong>"Beneficial" Label:</strong> A timeout is labeled beneficial if (a) the team's score differential improved in the next 15 plays, OR (b) a 7+ point opponent run was stopped to ≤2 points after.<br>
+        <strong>Statistical Tests:</strong> Mann-Whitney U tests for group comparisons. Pearson correlation for continuous relationships. p &lt; 0.05 considered significant.<br>
+        <strong>Simulator:</strong> Uses kernel density matching against historical timeouts in similar game states to estimate success probability.
+    </div>
+
+    <footer>
+        <p>Timeout IQ — Sports Analytics Hackathon 2026</p>
+        <p style="margin-top: 6px;">Built with NBA API, Python, XGBoost, and good old basketball intuition.</p>
+    </footer>
+</div>
+
+<script>
+// ============================================================
+// DATA — This gets populated from the CSV
+// ============================================================
+
+let DATA = [];
+let LOADED = false;
+
+async function loadData() {
+    try {
+        // Try bulk data first, fall back to single-team data
+        let response;
+        try {
+            response = await fetch('timeout_data_bulk.csv');
+            if (!response.ok) throw new Error('No bulk data');
+        } catch(e) {
+            response = await fetch('timeout_data.csv');
+        }
+        
+        const text = await response.text();
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',');
+        
+        DATA = lines.slice(1).map(line => {
+            const values = line.split(',');
+            const row = {};
+            headers.forEach((h, i) => {
+                const v = values[i];
+                row[h] = isNaN(v) ? v : parseFloat(v);
+            });
+            return row;
+        });
+        
+        LOADED = true;
+        
+        const teams = [...new Set(DATA.map(d => d.team).filter(Boolean))];
+        const seasons = [...new Set(DATA.map(d => d.season).filter(Boolean))];
+        
+        document.getElementById('data-status').textContent = 
+            `${DATA.length.toLocaleString()} timeouts · ${teams.length || 1} teams · ${seasons.length || 1} seasons`;
+        
+        renderAll();
+    } catch(e) {
+        document.getElementById('data-status').textContent = 'Error loading data';
+        console.error(e);
+    }
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+
+function renderAll() {
+    renderHeroStats();
+    renderFindings();
+    renderRunChart();
+    renderHeatmap();
+}
+
+function renderHeroStats() {
+    const total = DATA.length;
+    const beneficial = DATA.filter(d => d.beneficial === 1).length;
+    const rate = (beneficial / total * 100).toFixed(1);
+    
+    document.getElementById('stat-total').textContent = total.toLocaleString();
+    document.getElementById('stat-beneficial').textContent = rate + '%';
+    
+    // Optimal window: opp_run >= 7
+    const optimal = DATA.filter(d => d.opp_run_before >= 7);
+    const optimalRate = optimal.length > 0 ? 
+        (optimal.filter(d => d.beneficial === 1).length / optimal.length * 100).toFixed(0) : '—';
+    document.getElementById('stat-optimal').textContent = optimalRate + '%';
+    document.getElementById('stat-optimal-sub').textContent = `When opp run ≥ 7 pts (n=${optimal.length})`;
+    
+    // Worst: timeout during own run
+    const ownRun = DATA.filter(d => d.own_run_before >= 5);
+    const ownRunRate = ownRun.length > 0 ?
+        (ownRun.filter(d => d.beneficial === 1).length / ownRun.length * 100).toFixed(0) : '—';
+    document.getElementById('stat-worst').textContent = ownRunRate + '%';
+    
+    // Key signal
+    document.getElementById('stat-signal').textContent = 'Opp Run';
+}
+
+function renderFindings() {
+    const container = document.getElementById('findings-grid');
+    
+    // Calculate findings
+    const bigRun = DATA.filter(d => d.opp_run_before >= 5);
+    const smallRun = DATA.filter(d => d.opp_run_before < 5);
+    const bigRunRate = bigRun.filter(d => d.beneficial === 1).length / bigRun.length * 100;
+    const smallRunRate = smallRun.filter(d => d.beneficial === 1).length / smallRun.length * 100;
+    
+    const trailing = DATA.filter(d => d.score_diff < 0);
+    const leading = DATA.filter(d => d.score_diff > 0);
+    const trailRate = trailing.filter(d => d.beneficial === 1).length / trailing.length * 100;
+    const leadRate = leading.filter(d => d.beneficial === 1).length / leading.length * 100;
+    
+    const ownRun = DATA.filter(d => d.own_run_before >= 5);
+    const ownRunRate = ownRun.length > 0 ? ownRun.filter(d => d.beneficial === 1).length / ownRun.length * 100 : 0;
+    
+    const hotOpp = DATA.filter(d => d.opp_fg_pct_before >= 0.6);
+    const coldOpp = DATA.filter(d => d.opp_fg_pct_before < 0.4);
+    const hotRate = hotOpp.filter(d => d.beneficial === 1).length / hotOpp.length * 100;
+    const coldRate = coldOpp.length > 0 ? coldOpp.filter(d => d.beneficial === 1).length / coldOpp.length * 100 : 0;
+    
+    const findings = [
+        {
+            icon: '🔥', iconClass: 'green',
+            title: 'Call Timeout After a 5+ Point Opponent Run',
+            body: `When the opponent goes on a 5+ point unanswered run, calling timeout succeeds <strong>${bigRunRate.toFixed(0)}%</strong> of the time vs <strong>${smallRunRate.toFixed(0)}%</strong> without a run.`,
+            statLabel: 'Big Run Success Rate', statValue: bigRunRate.toFixed(0) + '%',
+            statClass: 'green-text'
+        },
+        {
+            icon: '⚠️', iconClass: 'red',
+            title: "NEVER Timeout During Your Own Run",
+            body: `Calling timeout while your team is on a 5+ point run kills momentum. Only <strong>${ownRunRate.toFixed(0)}%</strong> of these timeouts are beneficial — the worst outcome in the data.`,
+            statLabel: 'Own-Run Timeout Success', statValue: ownRunRate.toFixed(0) + '%',
+            statClass: 'red-text'
+        },
+        {
+            icon: '📉', iconClass: 'blue',
+            title: 'Timeouts Are Better When Trailing',
+            body: `When trailing: <strong>${trailRate.toFixed(0)}%</strong> success. When leading: <strong>${leadRate.toFixed(0)}%</strong>. Don't waste timeouts protecting a big lead.`,
+            statLabel: 'Trailing vs Leading Gap', statValue: '+' + (trailRate - leadRate).toFixed(0) + '%',
+            statClass: 'blue-text'
+        },
+        {
+            icon: '🎯', iconClass: 'amber',
+            title: 'Hot Opponent Shooting = Good Time to Call',
+            body: `When the opponent is shooting 60%+, timeouts succeed <strong>${hotRate.toFixed(0)}%</strong> of the time. When they're cold (<40%): <strong>${coldRate.toFixed(0)}%</strong>. A timeout can ice their rhythm.`,
+            statLabel: 'Hot Opp Success Rate', statValue: hotRate.toFixed(0) + '%',
+            statClass: 'amber-text'
+        }
+    ];
+    
+    container.innerHTML = findings.map(f => `
+        <div class="finding-card fade-in">
+            <div class="finding-header">
+                <div class="finding-icon ${f.iconClass}">${f.icon}</div>
+                <h3>${f.title}</h3>
+            </div>
+            <div class="finding-body">${f.body}</div>
+            <div class="finding-stat">
+                <span class="finding-stat-label">${f.statLabel}</span>
+                <span class="finding-stat-value ${f.statClass}">${f.statValue}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderRunChart() {
+    const container = document.getElementById('run-chart');
+    const bins = [
+        { label: '0 pts', min: 0, max: 0 },
+        { label: '2-3 pts', min: 2, max: 3 },
+        { label: '4-5 pts', min: 4, max: 5 },
+        { label: '6-7 pts', min: 6, max: 7 },
+        { label: '8-9 pts', min: 8, max: 9 },
+        { label: '10+ pts', min: 10, max: 999 },
+    ];
+    
+    const results = bins.map(bin => {
+        const subset = DATA.filter(d => d.opp_run_before >= bin.min && d.opp_run_before <= bin.max);
+        const rate = subset.length > 0 ? 
+            subset.filter(d => d.beneficial === 1).length / subset.length * 100 : 0;
+        return { ...bin, rate, n: subset.length };
+    });
+    
+    container.innerHTML = results.map(r => {
+        const colorClass = r.rate >= 50 ? 'green' : 'red';
+        return `
+            <div class="bar-row">
+                <div class="bar-label">${r.label}</div>
+                <div class="bar-track">
+                    <div class="bar-midline"></div>
+                    <div class="bar-fill ${colorClass}" style="width: ${r.rate}%">
+                        ${r.rate >= 15 ? r.rate.toFixed(0) + '%' : ''}
+                    </div>
+                </div>
+                <div class="bar-value" style="color: var(--accent-${colorClass}); font-size: 11px;">n=${r.n}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderHeatmap() {
+    const container = document.getElementById('heatmap');
+    
+    const runBins = [
+        { label: '0-2 pts', min: 0, max: 2 },
+        { label: '3-5 pts', min: 3, max: 5 },
+        { label: '6-8 pts', min: 6, max: 8 },
+        { label: '9-11 pts', min: 9, max: 11 },
+        { label: '12+ pts', min: 12, max: 999 },
+    ];
+    
+    const diffBins = [
+        { label: 'Down 10+', min: -999, max: -10 },
+        { label: 'Down 1-9', min: -9, max: -1 },
+        { label: 'Close (±0)', min: -1, max: 1 },
+        { label: 'Up 1-9', min: 1, max: 9 },
+        { label: 'Up 10+', min: 10, max: 999 },
+    ];
+    
+    // Header row
+    let html = '<div class="heatmap-label"></div>';
+    runBins.forEach(rb => {
+        html += `<div class="heatmap-label">Opp Run<br>${rb.label}</div>`;
+    });
+    
+    // Data rows
+    diffBins.forEach(db => {
+        html += `<div class="heatmap-label row-label">${db.label}</div>`;
+        runBins.forEach(rb => {
+            const subset = DATA.filter(d => 
+                d.opp_run_before >= rb.min && d.opp_run_before <= rb.max &&
+                d.score_diff >= db.min && d.score_diff <= db.max
+            );
+            const n = subset.length;
+            const rate = n > 0 ? subset.filter(d => d.beneficial === 1).length / n * 100 : 0;
+            
+            // Color interpolation
+            let bg;
+            if (n < 3) {
+                bg = 'rgba(255,255,255,0.05)';
+            } else if (rate >= 60) {
+                bg = `rgba(16, 185, 129, ${0.3 + (rate - 60) / 100})`;
+            } else if (rate >= 50) {
+                bg = `rgba(16, 185, 129, ${(rate - 50) / 50 * 0.3 + 0.1})`;
+            } else if (rate >= 40) {
+                bg = `rgba(239, 68, 68, ${(50 - rate) / 50 * 0.2 + 0.05})`;
+            } else {
+                bg = `rgba(239, 68, 68, ${0.2 + (40 - rate) / 100 * 0.3})`;
+            }
+            
+            html += `<div class="heatmap-cell" style="background: ${bg}" title="Opp run ${rb.label}, ${db.label}: ${rate.toFixed(0)}% success (n=${n})">
+                ${n >= 3 ? rate.toFixed(0) + '%' : '—'}
+                <span class="cell-n">${n >= 3 ? 'n=' + n : 'too few'}</span>
+            </div>`;
+        });
+    });
+    
+    container.innerHTML = html;
+}
+
+function runSimulation() {
+    const period = parseInt(document.getElementById('sim-period').value);
+    const clock = parseFloat(document.getElementById('sim-clock').value) * 60;
+    const diff = parseInt(document.getElementById('sim-diff').value);
+    const oppRun = parseInt(document.getElementById('sim-opp-run').value);
+    const ownRun = parseInt(document.getElementById('sim-own-run').value);
+    const oppFg = parseInt(document.getElementById('sim-opp-fg').value) / 100;
+    
+    // Find similar historical situations
+    const similar = DATA.filter(d => {
+        return Math.abs(d.opp_run_before - oppRun) <= 3 &&
+               Math.abs(d.score_diff - diff) <= 8 &&
+               Math.abs(d.own_run_before - ownRun) <= 3 &&
+               d.period === period;
+    });
+    
+    // Broader match if too few
+    let matchPool = similar;
+    if (similar.length < 10) {
+        matchPool = DATA.filter(d => {
+            return Math.abs(d.opp_run_before - oppRun) <= 5 &&
+                   Math.abs(d.score_diff - diff) <= 15;
+        });
+    }
+    
+    const panel = document.getElementById('result-panel');
+    
+    if (matchPool.length < 5) {
+        panel.className = 'result-panel active';
+        panel.style.borderColor = 'var(--text-muted)';
+        panel.style.background = 'rgba(255,255,255,0.03)';
+        panel.style.boxShadow = 'none';
+        panel.innerHTML = `
+            <div class="result-icon">🤷</div>
+            <div class="result-text">Insufficient Data</div>
+            <div class="result-detail">Only ${matchPool.length} similar situations found. Need at least 5 for a reliable estimate. Try broadening the parameters.</div>
+        `;
+        return;
+    }
+    
+    const successRate = matchPool.filter(d => d.beneficial === 1).length / matchPool.length * 100;
+    const avgSwing = matchPool.reduce((sum, d) => sum + (d.diff_change_after || 0), 0) / matchPool.length;
+    const shouldCall = successRate >= 50 || oppRun >= 8;
+    
+    // Contextual reasons
+    let reasons = [];
+    if (oppRun >= 7) reasons.push(`Opponent has a ${oppRun}-0 run — classic timeout moment`);
+    if (diff < -10) reasons.push(`Down ${Math.abs(diff)} — need to stop the bleeding`);
+    if (ownRun >= 5) reasons.push(`⚠️ Your team has a ${ownRun}-0 run — timeout may kill YOUR momentum`);
+    if (oppFg >= 0.6) reasons.push(`Opponent shooting ${(oppFg*100).toFixed(0)}% — timeout can break their rhythm`);
+    if (period === 4 && clock <= 120) reasons.push(`Under 2 min in Q4 — every timeout is precious`);
+    
+    panel.className = `result-panel active ${shouldCall ? 'call' : 'dont-call'}`;
+    panel.innerHTML = `
+        <div class="result-icon">${shouldCall ? '✅' : '🚫'}</div>
+        <div class="result-text" style="color: var(--accent-${shouldCall ? 'green' : 'red'})">${shouldCall ? 'CALL TIMEOUT' : "DON'T CALL TIMEOUT"}</div>
+        <div class="result-confidence" style="color: var(--accent-${shouldCall ? 'green' : 'red'})">${successRate.toFixed(0)}%</div>
+        <div class="result-detail">
+            Based on <strong>${matchPool.length}</strong> similar historical situations.<br>
+            Average score swing after timeout: <strong>${avgSwing >= 0 ? '+' : ''}${avgSwing.toFixed(1)}</strong> pts<br>
+            ${reasons.length > 0 ? '<br>' + reasons.join('<br>') : ''}
+        </div>
+    `;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Virtual environments
+venv/
+.venv/
+env/
+bin/
+lib/
+share/
+
+# Data files (keep small ones if needed, ignore large/generated ones)
+*.csv
+*.pkl
+*.png
+
+# Distribution / packaged
+node_modules/
+dist/
+build/
+*.egg-info/
