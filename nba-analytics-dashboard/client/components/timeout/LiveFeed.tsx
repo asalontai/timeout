@@ -1,133 +1,117 @@
-import { useState, useEffect } from "react";
-
-interface GameEvent {
-  id: number;
-  time: string;
-  quarter: number;
-  team: string;
-  action: string;
-  description: string;
-}
+import { useEffect, useRef } from "react";
+import type { Play, GameInfo } from "@/pages/Index";
 
 interface LiveFeedProps {
-  gameState: {
-    homeTeam: string;
-    awayTeam: string;
-    quarter: number;
-    timeRemaining: string;
-  };
+  currentPlay: Play | null;
+  recentPlays: Play[]; // newest first
+  gameInfo: GameInfo;
 }
 
-const MOCK_EVENTS: GameEvent[] = [
-  {
-    id: 1,
-    time: "10:24:32",
-    quarter: 4,
-    team: "MIA",
-    action: "TURNOVER",
-    description: "BAD PASS BY T. HERRO MOMENTUM SHIFT DETECTED",
-  },
-  {
-    id: 2,
-    time: "10:24:15",
-    quarter: 4,
-    team: "BOS",
-    action: "BASKET",
-    description: "J. TATUM MAKES 2PT SHOT",
-  },
-  {
-    id: 3,
-    time: "10:23:50",
-    quarter: 4,
-    team: "MIA",
-    action: "REBOUND",
-    description: "B. ADEBAYO DEFENSIVE REBOUND",
-  },
-  {
-    id: 4,
-    time: "10:23:20",
-    quarter: 4,
-    team: "BOS",
-    action: "FOUL",
-    description: "PERSONAL FOUL ON D. WHITE",
-  },
-  {
-    id: 5,
-    time: "10:22:45",
-    quarter: 4,
-    team: "MIA",
-    action: "BASKET",
-    description: "B. ADEBAYO MAKES 2PT SHOT",
-  },
-];
+function actionColor(action: string): string {
+  if (action.includes("MADE")) return "text-green-400";
+  if (action === "TURNOVER") return "text-red-400";
+  if (action === "STEAL") return "text-yellow-400";
+  if (action === "FOUL") return "text-orange-400";
+  if (action === "MISS" || action === "FT MISS") return "text-gray-500";
+  if (action === "REBOUND") return "text-blue-300";
+  if (action === "BLOCK") return "text-purple-400";
+  if (action === "TIMEOUT") return "text-cyan-400";
+  if (action === "FT MADE") return "text-green-300";
+  return "text-gray-400";
+}
 
-export default function LiveFeed({ gameState }: LiveFeedProps) {
-  const [events, setEvents] = useState<GameEvent[]>(MOCK_EVENTS);
-  const [displayCount, setDisplayCount] = useState(5);
+function teamColor(team: string, gi: GameInfo): string {
+  if (team === gi.homeTeam) return "text-purple-400";
+  if (team === gi.awayTeam) return "text-gray-300";
+  return "text-gray-500";
+}
+
+// Strip stat annotations like "(6 PTS)", "(Off:1 Def:0)", etc. from descriptions
+function cleanDescription(desc: string): string {
+  return desc.replace(/\s*\([^)]*\d[^)]*\)\s*/g, " ").trim();
+}
+
+export default function LiveFeed({ currentPlay, recentPlays, gameInfo }: LiveFeedProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Simulate new events coming in
-    const interval = setInterval(() => {
-      const newEvent: GameEvent = {
-        id: Math.random(),
-        time: new Date().toLocaleTimeString(),
-        quarter: gameState.quarter,
-        team: Math.random() > 0.5 ? gameState.homeTeam : gameState.awayTeam,
-        action: ["BASKET", "FOUL", "REBOUND", "TURNOVER"][
-          Math.floor(Math.random() * 4)
-        ],
-        description: "SIMULATED EVENT",
-      };
-      setEvents((prev) => [newEvent, ...prev].slice(0, 20));
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [gameState.quarter, gameState.homeTeam, gameState.awayTeam]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [currentPlay?.idx]);
 
   return (
-    <div className="terminal-panel p-4 h-full flex flex-col overflow-hidden bg-gray-950">
+    <div className="terminal-panel p-3 h-full flex flex-col overflow-hidden bg-gray-950">
       {/* Header */}
-      <div className="mb-4 pb-2 border-b border-gray-600">
-        <div className="terminal-glow text-sm font-bold">
-          &gt; LIVE_FEED
-        </div>
+      <div className="mb-2 pb-1.5 border-b border-gray-600 shrink-0">
+        <div className="terminal-glow text-sm font-bold">&gt; Live Feed</div>
       </div>
 
-      {/* Events scroll area */}
-      <div className="flex-1 overflow-y-auto space-y-2 text-xs font-mono">
-        {/* Current event - highlighted */}
-        {events.length > 0 && (
-          <div className="mb-4 p-3 bg-gray-900/60 border border-gray-600 rounded-none animate-pulse-glow">
-            <div className="terminal-glow font-bold mb-1">
-              [{events[0].time}] &gt; <span className="text-blue-300">Q{events[0].quarter}</span> |{" "}
-              <span className="text-blue-300">{gameState.timeRemaining}</span> | {events[0].team}
+      {/* Scoreboard */}
+      <div className="mb-2 p-2 bg-gray-900/60 border border-gray-600 shrink-0">
+        <div className="flex items-center justify-between text-center">
+          <div className="flex-1">
+            <div className="text-[10px] text-purple-400 font-bold">{gameInfo.homeTeam}</div>
+            <div className="text-xl font-bold text-purple-400">{currentPlay?.homeScore ?? 0}</div>
+          </div>
+          <div className="px-3">
+            <div className="text-[10px] text-gray-600">Q{currentPlay?.period ?? 1}</div>
+            <div className="text-sm font-bold text-gray-500">{currentPlay?.clock ?? "12:00"}</div>
+          </div>
+          <div className="flex-1">
+            <div className="text-[10px] text-gray-300 font-bold">{gameInfo.awayTeam}</div>
+            <div className="text-xl font-bold text-gray-300">{currentPlay?.awayScore ?? 0}</div>
+          </div>
+        </div>
+        {(currentPlay?.sasRun ?? 0) >= 5 && (
+          <div className="mt-1 pt-1 border-t border-gray-700 text-center">
+            <span className="text-[10px] text-red-400 animate-pulse font-bold">
+              {gameInfo.awayTeam} {currentPlay!.sasRun}-0 RUN
+            </span>
+          </div>
+        )}
+        {(currentPlay?.sacRun ?? 0) >= 5 && (
+          <div className="mt-1 pt-1 border-t border-gray-700 text-center">
+            <span className="text-[10px] text-green-400 font-bold">
+              {gameInfo.homeTeam} {currentPlay!.sacRun}-0 RUN
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Scrollable play log */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-1 text-xs font-mono min-h-0">
+        {/* Current play — highlighted */}
+        {currentPlay && (
+          <div className="mb-1 p-2 bg-gray-900/60 border border-gray-600 animate-pulse-glow">
+            <div className="terminal-glow font-bold text-xs">
+              [{currentPlay.clock}] Q{currentPlay.period} |{" "}
+              <span className={teamColor(currentPlay.team, gameInfo)}>{currentPlay.team}</span>
             </div>
-            <div className="terminal-glow ml-4 text-gray-300">
-              {events[0].action} {'>>>>'} {events[0].description}
+            <div className="ml-3 text-gray-300 text-xs mt-0.5">
+              <span className={actionColor(currentPlay.action)}>{currentPlay.action}</span>{" "}
+              {cleanDescription(currentPlay.description)}
             </div>
-            <div className="text-gray-500 mt-1 ml-4">
-              <span className="animate-blink">▌</span>
-            </div>
+            {currentPlay.isMomentumShift && (
+              <div className="ml-3 mt-0.5 text-orange-400 text-[9px] font-bold animate-pulse">
+                MOMENTUM SHIFT
+              </div>
+            )}
           </div>
         )}
 
-        {/* Previous events - dimmed */}
-        {events.slice(1, displayCount).map((event) => (
+        {/* Previous plays */}
+        {recentPlays.slice(1).map((play) => (
           <div
-            key={event.id}
-            className="text-gray-500 text-opacity-60 py-1 border-l-2 border-gray-600/50 pl-2"
+            key={play.idx}
+            className="py-0.5 text-[11px] border-l-2 border-gray-700/40 pl-2 text-gray-500 opacity-50"
           >
-            <div className="text-xs">
-              [{event.time}] &gt; Q{event.quarter} | {event.team}
-            </div>
-            <div className="text-xs ml-2">{event.action}: {event.description}</div>
+            [{play.clock}] Q{play.period} |{" "}
+            <span className={teamColor(play.team, gameInfo) + " opacity-60"}>{play.team}</span>{" "}
+            <span className={actionColor(play.action) + " opacity-60"}>{play.action}</span>{" "}
+            {cleanDescription(play.description)}
           </div>
         ))}
-
-        {/* Scrollbar indicator */}
-        <div className="text-center text-gray-600 text-xs mt-4 py-2 border-t border-gray-700/50">
-          ... scrolling ...
-        </div>
       </div>
     </div>
   );

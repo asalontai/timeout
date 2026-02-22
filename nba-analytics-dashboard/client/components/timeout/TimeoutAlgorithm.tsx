@@ -1,135 +1,155 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { Play, GameInfo } from "@/pages/Index";
 
 interface TimeoutAlgorithmProps {
-  gameState: {
-    homeTeam: string;
-    awayTeam: string;
-    momentum: number;
-    timeRemaining: string;
-  };
+  currentPlay: Play | null;
+  gameInfo: GameInfo;
 }
 
 interface LogEntry {
-  id: number;
-  timestamp: string;
-  level: "SYS" | "ALERT" | "CRITICAL" | "INFO";
+  id: string;
+  level: "SYS" | "ALERT" | "CRITICAL" | "INFO" | "MODEL";
   message: string;
 }
 
-export default function TimeoutAlgorithm({ gameState }: TimeoutAlgorithmProps) {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: 1,
-      timestamp: "10:24:32",
-      level: "SYS",
-      message: "System initialized and running",
-    },
-    {
-      id: 2,
-      timestamp: "10:24:25",
-      level: "SYS",
-      message: "Analyzing possession metrics...",
-    },
-    {
-      id: 3,
-      timestamp: "10:24:18",
-      level: "SYS",
-      message: "Fatigue index for MIA lineup at 78%",
-    },
-    {
-      id: 4,
-      timestamp: "10:24:10",
-      level: "INFO",
-      message: "Waiting for next dead ball event",
-    },
-  ]);
+function buildLogsForPlay(p: Play, gi: GameInfo): LogEntry[] {
+  const logs: LogEntry[] = [];
+  const prefix = `Q${p.period}`;
 
-  const [criticalAlert, setCriticalAlert] = useState(true);
+  logs.push({ id: `${p.idx}-1`, level: "SYS", message: `[${prefix} ${p.clock}] Analyzing play #${p.idx}...` });
+  logs.push({ id: `${p.idx}-2`, level: "SYS", message: `Score: ${gi.homeTeam} ${p.homeScore} - ${gi.awayTeam} ${p.awayScore} (diff: ${p.scoreDiff > 0 ? "+" : ""}${p.scoreDiff})` });
+
+  if (p.sasRun >= 5) {
+    logs.push({ id: `${p.idx}-3`, level: "ALERT", message: `${gi.awayTeam} ${p.sasRun}-0 RUN DETECTED` });
+  }
+  if (p.sacRun >= 5) {
+    logs.push({ id: `${p.idx}-3b`, level: "INFO", message: `${gi.homeTeam} ${p.sacRun}-0 RUN` });
+  }
+
+  logs.push({ id: `${p.idx}-4`, level: "MODEL", message: "--- MORALE MODEL ---" });
+  logs.push({
+    id: `${p.idx}-5`,
+    level: p.m1Timeout ? "ALERT" : "INFO",
+    message: `Momentum: ${p.m1AvgMomentum > 0 ? "+" : ""}${p.m1AvgMomentum.toFixed(2)} -> ${p.m1Timeout ? "TIMEOUT" : "NO"} (${(p.m1Confidence * 100).toFixed(0)}%)`,
+  });
+
+  logs.push({ id: `${p.idx}-6`, level: "MODEL", message: "--- XGBOOST MODEL ---" });
+  logs.push({
+    id: `${p.idx}-7`,
+    level: p.m2Timeout ? "ALERT" : "INFO",
+    message: `P(beneficial): ${(p.m2ProbBeneficial * 100).toFixed(0)}% -> ${p.m2Timeout ? "TIMEOUT" : "NO"} (${(p.m2Confidence * 100).toFixed(0)}%)`,
+  });
+
+  logs.push({ id: `${p.idx}-8`, level: "MODEL", message: "--- ENSEMBLE ---" });
+  logs.push({
+    id: `${p.idx}-9`,
+    level: p.finalTimeout ? "CRITICAL" : "INFO",
+    message: `VERDICT: ${p.finalTimeout ? "CALL TIMEOUT" : "NO TIMEOUT"} (${(p.finalConfidence * 100).toFixed(0)}%) [${p.agreement}]`,
+  });
+
+  return logs;
+}
+
+export default function TimeoutAlgorithm({ currentPlay, gameInfo }: TimeoutAlgorithmProps) {
+  const [logHistory, setLogHistory] = useState<LogEntry[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastPlayIdx = useRef<number>(-1);
 
   useEffect(() => {
-    // Simulate system logs
-    const interval = setInterval(() => {
-      const newLog: LogEntry = {
-        id: Math.random(),
-        timestamp: new Date().toLocaleTimeString(),
-        level: Math.random() > 0.7 ? "ALERT" : "SYS",
-        message: [
-          "Analyzing possession metrics...",
-          "Calculating player fatigue levels",
-          "Monitoring game momentum shift",
-          "Tracking timeout utilization",
-          "Processing real-time analytics",
-        ][Math.floor(Math.random() * 5)],
-      };
-      setLogs((prev) => [newLog, ...prev].slice(0, 15));
-    }, 6000);
+    if (!currentPlay || currentPlay.idx === lastPlayIdx.current) return;
+    lastPlayIdx.current = currentPlay.idx;
 
-    return () => clearInterval(interval);
-  }, []);
+    const newLogs = buildLogsForPlay(currentPlay, gameInfo);
+    setLogHistory((prev) => [...newLogs, ...prev].slice(0, 100)); // keep last 100 entries
 
-  const isCritical = gameState.momentum < -10 || gameState.momentum > 20;
+    // Auto-scroll to top
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [currentPlay?.idx]);
+
+  const isCritical = currentPlay?.finalTimeout ?? false;
 
   return (
     <div className="terminal-panel p-4 h-full flex flex-col overflow-hidden bg-gray-950">
       {/* Header */}
-      <div className="mb-4 pb-2 border-b border-gray-600">
+      <div className="mb-3 pb-2 border-b border-gray-600">
         <div className="terminal-glow text-sm font-bold">
           &gt; TIMEOUT_ALGORITHM_OUTPUT
+        </div>
+        <div className="text-xs text-gray-600 mt-1">
+          Real-time analysis — {gameInfo.awayTeam} @ {gameInfo.homeTeam}
         </div>
       </div>
 
       {/* Scrolling logs */}
-      <div className="flex-1 overflow-y-auto space-y-1 font-mono text-xs mb-4">
-        {logs.map((log) => (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-0.5 font-mono text-xs mb-3">
+        {logHistory.map((log) => (
           <div
             key={log.id}
-            className={`py-0.5 ${
-              log.level === "CRITICAL"
-                ? "text-red-400"
+            className={`py-0.5 ${log.level === "CRITICAL"
+                ? "text-green-400 font-bold"
                 : log.level === "ALERT"
                   ? "text-orange-400"
-                  : "text-gray-500"
-            }`}
+                  : log.level === "MODEL"
+                    ? "text-blue-300 opacity-70"
+                    : log.level === "INFO"
+                      ? "text-gray-400"
+                      : "text-gray-500"
+              }`}
           >
-            [{log.timestamp}] {log.level === "SYS" ? "[SYS]" : `[${log.level}]`} {">"} {log.message}
+            {log.level === "MODEL" ? (
+              <span>{log.message}</span>
+            ) : (
+              <span>
+                [{log.level}] {">"} {log.message}
+              </span>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Command line prompt with critical alert */}
+      {/* Verdict bar */}
       <div className="border-t border-gray-600 pt-3 space-y-2">
-        {isCritical && (
-          <div className="bg-red-900/20 border border-red-700/50 p-2 rounded-none animate-pulse-glow">
-            <div className="terminal-alert font-bold text-xs">
-              ADMIN@TIMEOUT_SYS:~# CRITICAL_ALERT
+        {isCritical ? (
+          <div className="bg-green-900/20 border border-green-700/50 p-2 animate-pulse-glow">
+            <div className="text-green-400 font-bold text-xs">
+              RECOMMENDATION: CALL TIMEOUT NOW
             </div>
-            <div className="terminal-alert text-xs ml-2 mt-1">
-              OPPONENT RUN DETECTED (12-2)
-            </div>
-            <div className="terminal-alert text-xs ml-2 mt-1 font-bold">
-              RECOMMENDATION: {'>>>>'} INITIATE TIMEOUT SEQUENCE NOW {'<<<<'}
+          </div>
+        ) : (
+          <div className="bg-gray-800/40 border border-gray-600/50 p-2">
+            <div className="text-gray-500 text-xs">
+              Status: Monitoring — no timeout needed
             </div>
           </div>
         )}
 
-        {/* Status prompt */}
-        <div className="bg-gray-800/40 border border-gray-600/50 p-2 rounded-none">
-          <div className="text-gray-500 text-xs">
-            ADMIN@TIMEOUT_SYS:~#
-            <span className="animate-blink">▌</span>
-          </div>
-        </div>
-
         {/* Quick stats */}
-        <div className="space-y-1 text-xs pt-2 border-t border-gray-600/30">
-          <div className="text-gray-500">
-            Momentum: <span className="terminal-glow">{gameState.momentum > 0 ? "+" : ""}{gameState.momentum}%</span>
+        {currentPlay && (
+          <div className="space-y-1 text-xs pt-2 border-t border-gray-600/30">
+            <div className="text-gray-500">
+              Momentum:{" "}
+              <span className={currentPlay.momentum > 0 ? "text-purple-400" : "text-gray-300"}>
+                {currentPlay.momentum > 0 ? "+" : ""}{currentPlay.momentum.toFixed(2)}
+              </span>
+            </div>
+            <div className="text-gray-500">
+              Opp FG%:{" "}
+              <span className="terminal-glow">{(currentPlay.oppFgPct * 100).toFixed(0)}%</span>
+              {" | "}Own FG%:{" "}
+              <span className="terminal-glow">{(currentPlay.ownFgPct * 100).toFixed(0)}%</span>
+            </div>
+            <div className="text-gray-500">
+              Turnovers — Own: {currentPlay.ownTurnovers} | Opp: {currentPlay.oppTurnovers}
+            </div>
           </div>
-          <div className="text-gray-500">
-            Time Remaining: <span className="terminal-glow">{gameState.timeRemaining}</span>
-          </div>
-          <div className="text-gray-500">
-            Status: <span className={isCritical ? "terminal-alert animate-blink" : "terminal-glow"}>{isCritical ? "CRITICAL" : "MONITORING"}</span>
+        )}
+
+        {/* Prompt */}
+        <div className="bg-gray-800/40 border border-gray-600/50 p-2">
+          <div className="text-gray-500 text-xs">
+            ADMIN@TIMEOUT_SYS:~# <span className="animate-blink">|</span>
           </div>
         </div>
       </div>
