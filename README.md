@@ -6,7 +6,7 @@ Most coaches call timeouts based on "feel" when an opponent starts a run. We dec
 
 ---
 
-## How it Works: The Dual-Model Approach
+## How it Works: The Dual-Model Approach   
 
 Decisions in sports are based on both psychology and statistics. We use a hybrid model system to quantify the psychological and statistical aspects, deducing an overall optimal time to use a time out.
 
