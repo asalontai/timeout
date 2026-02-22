@@ -1,4 +1,4 @@
-# Timeout! - NBA Timeout Optimization Intelligence
+# Timeout! -- NBA Timeout Optimization Intelligence
 
 **Timeout!** is an AI-powered analytics platform built to solve one of the most debated questions in basketball: *Does calling a timeout actually help?*
 
