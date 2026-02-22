@@ -66,7 +66,7 @@ The dashboard will be available at `http://localhost:8080`.
 ## Tech Stack
 - **Data**: NBA API (PlayByPlayV3)
 - **ML**: Python, XGBoost, Scikit-learn
-- **Frontend**: Vanilla HTML5, CSS3 (Glassmorphism), JavaScript (D3-inspired visualization)
+- **Frontend**: Vanilla HTML5, CSS3, JavaScript
 - **Data Processing**: Pandas / NumPy
 
 Built for the **Hacklytics Hackathon 2026**.
